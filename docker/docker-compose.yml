@@ -1,0 +1,57 @@
+name: browser-mcp
+
+services:
+  # ─── Playwright Container ───
+  # Use for: web app testing, authenticated browsing, sites that don't need Chrome extensions
+  # Docs: https://github.com/microsoft/playwright-mcp
+
+  browser-playwright:
+    build:
+      context: .
+      dockerfile: Dockerfile.playwright
+    ports:
+      - "9100:3000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./shared/storageState.json:/app/storageState.json:ro
+    environment:
+      - PROJECT_NAME=my-project
+      # Comma-separated localhost ports to forward into the container via socat.
+      # Makes localhost:PORT inside the browser reach your host machine's localhost:PORT.
+      - FORWARD_PORTS=5173,8080
+    restart: unless-stopped
+
+  # ─── Chrome DevTools Container ───
+  # Use for: testing Chrome extensions, sites needing extension injection
+  # Docs: https://github.com/ChromeDevTools/chrome-devtools-mcp
+
+  browser-chrome-devtools:
+    build:
+      context: .
+      dockerfile: Dockerfile.chrome
+    ports:
+      - "9101:9222"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./shared/storageState.json:/app/storageState.json:ro
+      - ./extensions/cookie-injector:/app/extensions/cookie-injector
+      - ./shared/storageState.json:/app/extensions/cookie-injector/storageState.json:ro
+      # Mount your Chrome extension into the container (uncomment and edit):
+      # - /path/to/your/extension:/app/extensions/my-extension:ro
+    environment:
+      - PROJECT_NAME=my-extension-project
+      - MCP_PORT=9222
+      - FORWARD_PORTS=5173,8080
+    restart: unless-stopped
+
+  # ─── Adding More Containers ───
+  # Duplicate a service block above and change:
+  #   1. Service name (e.g., browser-playwright-2)
+  #   2. Host port (e.g., 9102:3000 or 9103:9222)
+  #   3. PROJECT_NAME
+  #   4. FORWARD_PORTS for your project's localhost services
+  #
+  # Each MCP server is single-client — use one container per project.
+  # Port convention: 9100-9149 (Playwright on 3000, Chrome DevTools on 9222)

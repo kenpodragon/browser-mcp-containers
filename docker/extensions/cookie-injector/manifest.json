@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Browser MCP Cookie Injector",
+  "version": "1.2",
+  "description": "Injects cookies and browser signature spoofing from storageState.json into Chrome DevTools containers",
+  "permissions": ["cookies"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [{
+    "matches": ["<all_urls>"],
+    "js": ["content.js"],
+    "run_at": "document_start",
+    "all_frames": true,
+    "world": "MAIN"
+  }],
+  "web_accessible_resources": [{
+    "resources": ["storageState.json"],
+    "matches": ["<all_urls>"]
+  }]
+}

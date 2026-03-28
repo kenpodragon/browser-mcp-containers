@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Browser MCP Cookie Export",
+  "version": "1.1",
+  "description": "Export browser cookies and fingerprint to storageState.json for Docker MCP containers",
+  "permissions": ["cookies", "downloads", "scripting", "activeTab"],
+  "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png"
+    }
+  },
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png"
+  }
+}

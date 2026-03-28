@@ -1,0 +1,16 @@
+# Real cookie/session data (contains auth tokens — never commit)
+docker/shared/storageState.json
+
+# Python
+__pycache__/
+*.pyc
+
+# Environment
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude Code project cache
+.claude/

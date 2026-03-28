@@ -1,0 +1,39 @@
+FROM node:20-slim
+
+# Install Chrome dependencies (libs/fonts needed by Chrome for Testing)
+# We install google-chrome-stable to pull in all shared libraries, then remove the binary
+# since we use Chrome for Testing (which supports --load-extension, unlike Chrome 142+)
+RUN apt-get update && apt-get install -y \
+    wget \
+    gnupg \
+    xvfb \
+    socat \
+    && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
+    && apt-get update \
+    && apt-get install -y google-chrome-stable \
+    && rm -f /usr/bin/google-chrome-stable /usr/bin/google-chrome \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install chrome-devtools-mcp and mcp-proxy (stdio-to-SSE/HTTP bridge)
+RUN npm install -g chrome-devtools-mcp mcp-proxy
+
+# Download Chrome for Testing (supports --load-extension, unlike regular Chrome 142+)
+# Use puppeteer's install command to put it in the standard Puppeteer cache
+RUN npx puppeteer install chrome 2>&1 \
+    && find / -type f -name 'chrome' -not -path '/opt/*' -not -path '/usr/*' 2>/dev/null > /app/.chrome-paths \
+    && cat /app/.chrome-paths
+
+# Create directories for extensions and profile
+RUN mkdir -p /app/extensions /app/profile
+
+# Copy entrypoint and signature generator
+COPY entrypoint-chrome.sh /app/entrypoint-chrome.sh
+COPY generate-anti-detect.py /app/generate-anti-detect.py
+RUN chmod +x /app/entrypoint-chrome.sh
+
+EXPOSE 9222
+
+ENTRYPOINT ["/app/entrypoint-chrome.sh"]

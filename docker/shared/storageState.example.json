@@ -1,0 +1,46 @@
+{
+  "cookies": [
+    {
+      "name": "session_id",
+      "value": "PLACEHOLDER_VALUE",
+      "domain": ".example.com",
+      "path": "/",
+      "expires": 1750000000,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": [],
+  "browserSignature": {
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+    "platform": "Win32",
+    "languages": ["en-US", "en"],
+    "screenWidth": 1920,
+    "screenHeight": 1080,
+    "screenColorDepth": 24,
+    "devicePixelRatio": 1,
+    "deviceMemory": 8,
+    "hardwareConcurrency": 8,
+    "maxTouchPoints": 0,
+    "timezone": "America/New_York",
+    "timezoneOffset": -300,
+    "doNotTrack": null,
+    "cookieEnabled": true,
+    "pdfViewerEnabled": true,
+    "pluginCount": 5,
+    "webglVendor": "Google Inc. (NVIDIA)",
+    "webglRenderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "connectionType": "4g",
+    "connectionRtt": 50,
+    "connectionDownlink": 10,
+    "userAgentData": {
+      "brands": [
+        {"brand": "Chromium", "version": "146"},
+        {"brand": "Google Chrome", "version": "146"}
+      ],
+      "mobile": false,
+      "platform": "Windows"
+    }
+  }
+}

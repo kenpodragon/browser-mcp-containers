@@ -1,0 +1,17 @@
+FROM mcr.microsoft.com/playwright/mcp:latest
+
+# Install socat for localhost → host forwarding (base image runs as non-root)
+USER root
+RUN apt-get update && apt-get install -y socat python3 && rm -rf /var/lib/apt/lists/*
+
+# Copy config, anti-detect script, signature generator, and entrypoint
+COPY playwright-config.json /app/playwright-config.json
+COPY anti-detect.js /app/anti-detect.js
+COPY generate-anti-detect.py /app/generate-anti-detect.py
+COPY --chmod=755 entrypoint-playwright.sh /app/entrypoint-playwright.sh
+
+# Expose MCP HTTP port (overridden per-service in compose)
+EXPOSE 3000
+
+# Headed mode on Xvfb — avoids HeadlessChrome fingerprint
+ENTRYPOINT ["/app/entrypoint-playwright.sh"]

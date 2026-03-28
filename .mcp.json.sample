@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "playwright-myproject": {
+      "type": "sse",
+      "url": "http://localhost:9100/sse"
+    },
+    "chrome-devtools-myproject": {
+      "type": "sse",
+      "url": "http://localhost:9101/sse"
+    }
+  }
+}

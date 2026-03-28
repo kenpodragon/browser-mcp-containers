@@ -1,0 +1,45 @@
+# Browser MCP Containers
+
+## Available MCP Tools
+
+This project uses containerized browser MCP servers. The following tools are available:
+
+### Playwright Container (port 9100)
+- `browser_navigate` — Navigate to a URL
+- `browser_snapshot` — Get page accessibility snapshot
+- `browser_click` — Click an element
+- `browser_fill` — Fill an input field
+- `browser_take_screenshot` — Screenshot the current page
+- `browser_console_messages` — Get console output
+- `browser_network_requests` — Get network activity
+
+### Chrome DevTools Container (port 9101)
+- `navigate_page` — Navigate to a URL
+- `take_screenshot` — Screenshot (saved inside container, retrieve via docker cp)
+- `click` — Click an element
+- `fill` — Fill an input field
+- `evaluate_script` — Run JavaScript in the page
+- `list_pages` — List open browser tabs
+
+## Important Notes
+
+### MCP Configuration
+- Always use `"type": "sse"` in `.mcp.json` when mixing HTTP and SSE MCP transports
+- Use the `/sse` endpoint (not `/mcp`)
+- See `.mcp.json.sample` in the repo root for a working example
+
+### Single-Client Limitation
+Each MCP container serves one client at a time. If the connection seems stuck:
+```bash
+cd docker && docker compose restart browser-playwright
+```
+
+### Screenshot Retrieval (Chrome DevTools)
+Chrome DevTools screenshots are saved inside the container, not returned inline:
+```bash
+docker cp browser-mcp-browser-chrome-devtools-1:/app/screenshot.png ./screenshot.png
+```
+
+### Localhost Forwarding
+Ports listed in `FORWARD_PORTS` (docker-compose.yml) are forwarded into the container.
+`localhost:PORT` inside the browser reaches your host machine's `localhost:PORT`.
