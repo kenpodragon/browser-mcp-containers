@@ -1,9 +1,9 @@
 /**
- * Cookie Injector for Browser MCP Docker containers.
+ * Cookie Injector for Krakalaken Docker containers.
  * Reads storageState.json (mounted into the extension directory) and
  * injects all cookies via chrome.cookies.set() on startup.
  *
- * The storageState.json is volume-mounted from docker/shared/ into
+ * The storageState.json is volume-mounted from the host into
  * /app/extensions/cookie-injector/storageState.json inside the container.
  */
 

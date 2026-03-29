@@ -43,3 +43,18 @@ docker cp browser-mcp-browser-chrome-devtools-1:/app/screenshot.png ./screenshot
 ### Localhost Forwarding
 Ports listed in `FORWARD_PORTS` (docker-compose.yml) are forwarded into the container.
 `localhost:PORT` inside the browser reaches your host machine's `localhost:PORT`.
+
+### Auth-Protected Pages (IndexedDB Injection)
+Browser containers inject Firebase/IndexedDB auth from `storageState.json` at startup. When navigating to auth-protected pages:
+1. `browser_navigate` to the page — the **initial snapshot may show the login/landing page** (auth is async)
+2. Call `browser_console_messages` (level: debug) — check the Page URL in the response; if auth worked, it will show the redirected URL (e.g. `/game` instead of `/`)
+3. If needed, take a second `browser_snapshot` to see the authenticated page content
+4. The `ConstraintError: createObjectStore` warning in console is expected and harmless — it's the IndexedDB interceptor
+5. If auth doesn't work, the `storageState.json` may need re-exporting: open the target site in host Chrome (logged in) -> click the export extension's **Grab DB** -> **Download All** -> save to `docker/shared/storageState.json` -> restart the container
+
+### Using Chrome DevTools Snapshot/Evaluate
+- `take_snapshot` with `filePath` saves inside the container, not on host — for quick checks use `evaluate_script` instead:
+  ```
+  evaluate_script: () => ({ title: document.title, url: location.href })
+  ```
+- LinkedIn note: `linkedin.com/` shows the login page to everyone — navigate to `/feed/` to verify auth

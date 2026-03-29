@@ -21,7 +21,9 @@ Docker containers running [Playwright MCP](https://github.com/microsoft/playwrig
    - Click **Load unpacked**
    - Select the `docker/extensions/cookie-exporter/` directory
 
-3. Click the cookie-exporter extension icon in Chrome. It exports all cookies plus your browser's full fingerprint and saves a `storageState.json` file.
+3. Export your session data:
+   - **Single site**: Navigate to your app (logged in), click the extension icon, click **Download All**
+   - **Multiple sites**: Visit each site, click **Grab DB** on each, then click **Download All** once
 
 4. Copy the exported file into the shared directory:
    ```bash
@@ -53,20 +55,43 @@ Docker containers running [Playwright MCP](https://github.com/microsoft/playwrig
 | **Internal port** | 3000 | 9222 |
 | **Simpler setup** | Yes | More moving parts |
 
-## Cookie Export Pipeline
+## Export Pipeline
 
-**Why a browser extension?** Starting with Chrome v146+, cookies are encrypted using app-bound DPAPI. External tools (Python scripts, standalone decryptors) can no longer decrypt Chrome cookies. A browser extension is the only reliable way to export them.
+**Why a browser extension?** Starting with Chrome v146+, cookies are encrypted using app-bound DPAPI. External tools (Python scripts, standalone decryptors) can no longer decrypt Chrome cookies. IndexedDB (where Firebase and other frameworks store auth tokens) is also origin-scoped and inaccessible externally. A browser extension is the only reliable way to export both.
 
 **What the extension captures:**
 
 - **All cookies** from the current Chrome profile
-- **Full browser fingerprint**: User-Agent, platform, screen dimensions, WebGL renderer, Client Hints (Sec-CH-UA headers), languages, timezone, connection info (`navigator.connection`), `deviceMemory`, `hardwareConcurrency`, `colorDepth`, `pixelRatio`, `doNotTrack`
+- **Full browser fingerprint**: User-Agent, platform, screen dimensions, WebGL renderer, Client Hints, languages, timezone, connection info, hardware specs
+- **IndexedDB databases** from the active tab's origin (Firebase auth, app state, etc.)
 
-**Export format:** The `storageState.json` file is Playwright-compatible (cookies + origins arrays) with an added `browserSignature` field containing the captured fingerprint. Both Playwright and Chrome DevTools containers read from this same file.
+**Multi-site workflow:** IndexedDB is origin-scoped -- `indexedDB.databases()` only returns databases for the current page's origin. To capture auth state from multiple sites:
 
-## Anti-Detection
+1. Navigate to **Site A** (logged in) -- click **Grab DB**
+2. Navigate to **Site B** (logged in) -- click **Grab DB**
+3. Repeat for all sites needing auth
+4. Click **Download All** -- one `storageState.json` with everything
 
-At container startup, `generate-anti-detect.py` reads the `browserSignature` field from `docker/shared/storageState.json` and generates JavaScript patches plus Chrome launch flags that make the container's browser match your real browser's fingerprint.
+The extension accumulates IndexedDB data across sites using `chrome.storage.local`. A collapsible panel shows all collected origins and databases for review before downloading. The **Clear** button resets the collection.
+
+**Export format:** Playwright-compatible `storageState.json` with added `browserSignature` and `indexedDB` fields. The `indexedDB` key is organized by origin:
+
+```json
+{
+  "cookies": [...],
+  "browserSignature": {...},
+  "indexedDB": {
+    "http://localhost:5173": [{ "name": "firebaseLocalStorageDb", ... }],
+    "https://www.linkedin.com": [{ "name": "beacons", ... }]
+  }
+}
+```
+
+Both Playwright and Chrome DevTools containers read from this same file. The injection is origin-aware -- each page only gets IndexedDB data matching its origin, so multiple sites with the same database name (e.g. `firebaseLocalStorageDb`) don't collide.
+
+## Anti-Detection and Auth Injection
+
+At container startup, `generate-anti-detect.py` reads `docker/shared/storageState.json` and generates JavaScript patches that make the container's browser match your real browser's fingerprint AND inject IndexedDB auth data before page scripts run.
 
 **Spoofed signals:**
 
@@ -79,6 +104,8 @@ At container startup, `generate-anti-detect.py` reads the `browserSignature` fie
 - `colorDepth`, `pixelDepth`, `devicePixelRatio`, `doNotTrack`
 
 **Matching Chrome flags:** `--user-agent`, `--accept-lang`, `--window-size` are set to match the captured signature.
+
+**IndexedDB injection:** If `storageState.json` contains an `indexedDB` field, the generated script intercepts `indexedDB.open()` calls and injects the exported records before page scripts run. This is origin-aware -- only databases matching the current page's origin are injected. This enables Firebase Auth, session tokens, and other IndexedDB-stored state to carry over into containers.
 
 **Known limitation:** WebGL renderer cannot be spoofed without GPU passthrough. Containers report SwiftShader instead of your real GPU. This is the only remaining detectable signal.
 
@@ -147,6 +174,10 @@ All port assignments — host mappings, internal MCP ports, and forwarded ports 
 - **Chrome DevTools screenshots**: Saved inside the container at `/app/`. Retrieve with: `docker cp <container>:/app/screenshot.png ./`
 - **Env var changes**: `docker compose restart` does NOT re-read environment variables. Use `docker compose up -d` instead.
 - **Playwright base image**: The official image runs as non-root. The Dockerfile uses `USER root` before `apt-get install`.
+- **Auth pages show login first**: When navigating to auth-protected pages (e.g. Firebase), the initial page snapshot may show the login screen. Auth injection is async -- check `browser_console_messages` or take a second snapshot after a moment. The `Page URL` will show the redirected URL (e.g. `/game` or `/feed`) once auth completes.
+- **ConstraintError warning**: A `ConstraintError: An object store with the specified name already exists` warning may appear in the console. This is harmless -- the IndexedDB interceptor and the page's framework both try to create the same store. Auth still works.
+- **IndexedDB empty on export**: Make sure you're on the actual site page (not `chrome://` or `about:blank`) and logged in before clicking **Grab DB**. IndexedDB is origin-scoped and only returns databases for the current tab's origin.
+- **Auth stops working**: Tokens in `storageState.json` expire. Re-export: visit the site (logged in) in Chrome, click **Grab DB**, then **Download All**, save to `docker/shared/`, and `docker compose up -d --force-recreate`.
 
 ## Credits
 

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Browser MCP Cookie Injector",
+  "name": "Krakalaken Cookie Injector",
   "version": "1.2",
-  "description": "Injects cookies and browser signature spoofing from storageState.json into Chrome DevTools containers",
+  "description": "Injects cookies and browser signature spoofing from storageState.json",
   "permissions": ["cookies"],
   "host_permissions": ["<all_urls>"],
   "background": {

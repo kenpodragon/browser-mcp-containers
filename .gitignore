@@ -1,6 +1,9 @@
 # Real cookie/session data (contains auth tokens — never commit)
 docker/shared/storageState.json
 
+# Auto-generated injection scripts (contain baked-in auth tokens from storageState.json)
+docker/extensions/cookie-injector/content.js
+
 # Python
 __pycache__/
 *.pyc

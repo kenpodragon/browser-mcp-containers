@@ -208,7 +208,29 @@ This approach works identically in both Playwright and Chrome DevTools container
 
 ---
 
-## 9. Key Learnings
+## 9. The IndexedDB Auth Problem
+
+With cookies and fingerprints handled, we expected authenticated sessions to work everywhere. They didn't.
+
+Firebase Auth (and similar frameworks like Supabase, Auth0 with local storage) stores session tokens in **IndexedDB**, not cookies. When a user logs into a Firebase-powered app, the auth state goes into an IndexedDB database called `firebaseLocalStorageDb` under the key `firebase:authUser:<apiKey>:[DEFAULT]`. The critical piece is the **refresh token** -- Firebase SDK uses it to auto-mint fresh ID tokens on every page load.
+
+Our cookie export captured everything Chrome stores as HTTP cookies, but IndexedDB is a completely separate storage layer. The container's browser started with empty IndexedDB every time, so Firebase's `onAuthStateChanged` callback fired with `null` -- no user, not logged in.
+
+**The solution: extend the export pipeline to capture IndexedDB alongside cookies.**
+
+The browser extension now uses `indexedDB.databases()` to enumerate all databases on the active tab's origin, then reads every object store and record. This data is stored in `chrome.storage.local` so users can accumulate IndexedDB from multiple sites before downloading.
+
+**The origin-scoping challenge:** `indexedDB.databases()` is browser-security-scoped -- it only returns databases belonging to the current page's origin. You can't read `localhost:5173`'s IndexedDB while on `localhost:8888`. This means multi-site setups require visiting each site and clicking **Grab DB** before the final download.
+
+**Injection approach:** At container startup, the generate scripts read the `indexedDB` field from `storageState.json` and emit an interceptor that monkey-patches `indexedDB.open()`. When page scripts (like Firebase SDK) open a database, the interceptor checks if we have data for that database on the current origin. If so, it injects the exported records via a `readwrite` transaction before passing control to the page's original success handler.
+
+The interceptor handles both `request.onsuccess` assignment and `addEventListener('success')` patterns via `Object.defineProperty`, and uses `origin::dbname` as the injection tracking key to prevent cross-origin database name collisions. Two sites can both have a `firebaseLocalStorageDb` and each gets its own data.
+
+**Result:** Firebase auth, session tokens, and any other IndexedDB-stored state now transfers into containers alongside cookies and browser signatures.
+
+---
+
+## 10. Key Learnings
 
 1. **Puppeteer's default flags are the enemy.** `--disable-extensions` and `--enable-automation` are added silently by Puppeteer's launcher. They break extension loading and advertise automation. Use `--ignore-default-chrome-arg` to remove them selectively.
 
@@ -227,3 +249,7 @@ This approach works identically in both Playwright and Chrome DevTools container
 8. **Regular Chrome removed `--load-extension` in v142.** You must use Chrome for Testing, which retains extension side-loading support. Install it via Puppeteer's download command and reference it with `--executablePath`.
 
 9. **`docker compose restart` doesn't re-read environment variables.** If you change `.env` or `docker-compose.yml` environment values, `restart` uses the old values. Always use `docker compose up -d` to pick up changes.
+
+10. **IndexedDB is the hidden auth layer.** Cookies alone don't capture Firebase/Supabase/Auth0 sessions. These frameworks store auth tokens in IndexedDB, which requires a browser extension with `indexedDB.databases()` to export and an `indexedDB.open` interceptor to inject. The export is origin-scoped -- you must be on the target page to capture its databases.
+
+11. **Auth injection is async.** When navigating to a Firebase-protected page, the first page snapshot may show the login screen. The IndexedDB interceptor runs, but Firebase SDK processes it asynchronously. Check the page URL after a moment (via console messages or a second snapshot) to confirm the auth redirect happened.
